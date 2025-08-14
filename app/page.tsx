@@ -5,11 +5,19 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { nanoid } from 'nanoid';
 
+interface ActiveSession {
+  room_code: string;
+  cctv_connected: boolean;
+  monitor_connected: boolean;
+  updated_at: string;
+}
+
 export default function Home() {
   const router = useRouter();
   const [roomCode, setRoomCode] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
+  const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([]);
 
   useEffect(() => {
     // PWA 서비스 워커 등록
@@ -23,7 +31,26 @@ export default function Home() {
         }
       );
     }
+    
+    // 활성 세션 목록 가져오기
+    fetchActiveSessions();
   }, []);
+  
+  const fetchActiveSessions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('active_sessions')
+        .select('room_code, cctv_connected, monitor_connected, updated_at')
+        .order('updated_at', { ascending: false })
+        .limit(10); // 최근 10개만 표시
+      
+      if (!error && data) {
+        setActiveSessions(data);
+      }
+    } catch (error) {
+      console.error('활성 세션 조회 실패:', error);
+    }
+  };
 
   const generateRoomCode = () => {
     return nanoid(6).toUpperCase();
@@ -64,6 +91,9 @@ export default function Home() {
 
       // 룸 코드 표시
       setRoomCode(newRoomCode);
+      
+      // 활성 세션 목록 새로고침
+      fetchActiveSessions();
     } catch (error) {
       console.error('룸 생성 실패:', error);
       alert('룸 생성에 실패했습니다. 다시 시도해주세요.');
@@ -188,6 +218,54 @@ export default function Home() {
             </p>
           </div>
         </div>
+        
+        {/* 활성 세션 목록 */}
+        {activeSessions.length > 0 && (
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">활성 룸 목록</h3>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {activeSessions.map((session) => {
+                const minutesAgo = Math.floor((Date.now() - new Date(session.updated_at).getTime()) / 60000);
+                const hoursAgo = Math.floor(minutesAgo / 60);
+                const timeAgo = hoursAgo > 0 ? `${hoursAgo}시간 전` : `${minutesAgo}분 전`;
+                
+                return (
+                  <button
+                    key={session.room_code}
+                    onClick={() => setRoomCode(session.room_code)}
+                    className="w-full text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors group"
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center space-x-3">
+                        <span className="font-mono font-semibold text-blue-600">
+                          {session.room_code}
+                        </span>
+                        <div className="flex space-x-2">
+                          {session.cctv_connected && (
+                            <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">
+                              CCTV
+                            </span>
+                          )}
+                          {session.monitor_connected && (
+                            <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded">
+                              모니터
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-xs text-gray-500">
+                        {timeAgo}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              클릭하면 룸 코드가 입력됩니다
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
