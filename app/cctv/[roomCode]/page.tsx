@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { detectBlueLevel, BlueDetectionConfig, drawDebugOverlay } from '@/lib/blueDetection';
+import { detectBlueLevel, BlueDetectionConfig } from '@/lib/blueDetection';
 
 export default function CCTVMode() {
   const params = useParams();
@@ -12,15 +12,14 @@ export default function CCTVMode() {
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const debugCanvasRef = useRef<HTMLCanvasElement>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   
   const [isStreaming, setIsStreaming] = useState(false);
   const [currentBlueLevel, setCurrentBlueLevel] = useState(0);
   const [threshold, setThreshold] = useState(0.1);
-  const [debugMode, setDebugMode] = useState(false);
   const [alertTriggered, setAlertTriggered] = useState(false);
+  const [screenHidden, setScreenHidden] = useState(false);
   const [sessionData, setSessionData] = useState<any>(null); // eslint-disable-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
 
   useEffect(() => {
@@ -143,18 +142,11 @@ export default function CCTVMode() {
     const config: BlueDetectionConfig = {
       threshold,
       minBlueIntensity: 100,
-      debugMode
+      debugMode: false
     };
 
     const blueLevel = detectBlueLevel(imageData, config);
     setCurrentBlueLevel(blueLevel);
-
-    // 디버그 모드일 때 오버레이 그리기
-    if (debugMode && debugCanvasRef.current) {
-      debugCanvasRef.current.width = canvas.width;
-      debugCanvasRef.current.height = canvas.height;
-      drawDebugOverlay(debugCanvasRef.current, imageData, config);
-    }
 
     // 임계값 초과 확인
     // threshold가 0.7이면 파란색이 70% 이상일 때 알림
@@ -247,15 +239,14 @@ export default function CCTVMode() {
             autoPlay
             playsInline
             muted
-            className="w-full h-auto"
+            className={`w-full h-auto ${screenHidden ? 'invisible' : 'visible'}`}
           />
           
-          {/* 디버그 오버레이 */}
-          {debugMode && (
-            <canvas
-              ref={debugCanvasRef}
-              className="absolute top-0 left-0 w-full h-full opacity-50"
-            />
+          {/* 화면 가리기 오버레이 */}
+          {screenHidden && (
+            <div className="absolute inset-0 bg-black flex items-center justify-center">
+              <p className="text-gray-500 text-lg">화면이 숨겨졌습니다</p>
+            </div>
           )}
           
           {/* 숨겨진 작업 캔버스 */}
@@ -263,14 +254,6 @@ export default function CCTVMode() {
             ref={canvasRef}
             className="hidden"
           />
-          
-          {/* 알림 표시 */}
-          {alertTriggered && (
-            <div className="absolute top-4 left-4 right-4 bg-red-500 p-4 rounded-lg animate-pulse">
-              <p className="font-bold">파란색 감지됨!</p>
-              <p>레벨: {(currentBlueLevel * 100).toFixed(2)}%</p>
-            </div>
-          )}
         </div>
 
         {/* 컨트롤 */}
@@ -289,14 +272,14 @@ export default function CCTVMode() {
             </button>
             
             <button
-              onClick={() => setDebugMode(!debugMode)}
+              onClick={() => setScreenHidden(!screenHidden)}
               className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-                debugMode 
-                  ? 'bg-yellow-500 hover:bg-yellow-600' 
+                screenHidden 
+                  ? 'bg-gray-800 hover:bg-gray-900' 
                   : 'bg-gray-600 hover:bg-gray-700'
               }`}
             >
-              디버그 {debugMode ? 'ON' : 'OFF'}
+              화면 {screenHidden ? '보이기' : '가리기'}
             </button>
           </div>
 
