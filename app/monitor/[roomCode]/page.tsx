@@ -10,9 +10,9 @@ export default function MonitorMode() {
   const roomCode = params.roomCode as string;
   
   const audioRef = useRef<HTMLAudioElement>(null);
-  const channelRef = useRef<any>(null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   
-  const [sessionData, setSessionData] = useState<any>(null);
+  const [sessionData, setSessionData] = useState<any>(null); // eslint-disable-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
   const [currentBlueLevel, setCurrentBlueLevel] = useState(0);
   const [threshold, setThreshold] = useState(0.1);
   const [alertActive, setAlertActive] = useState(false);
@@ -31,6 +31,7 @@ export default function MonitorMode() {
     return () => {
       cleanup();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const initializeSession = async () => {
@@ -76,7 +77,7 @@ export default function MonitorMode() {
         schema: 'public',
         table: 'active_sessions',
         filter: `room_code=eq.${roomCode}`
-      }, (payload: any) => {
+      }, (payload: { new: { current_blue_level: number; blue_threshold: number; cctv_connected: boolean } }) => {
         const newData = payload.new;
         
         // 상태 업데이트
@@ -133,8 +134,7 @@ export default function MonitorMode() {
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification('Wait-a-Minute 알림', {
         body: '대기인원이 발생했습니다!',
-        icon: '/icon-192.png',
-        vibrate: [200, 100, 200]
+        icon: '/icon-192.png'
       });
     }
     

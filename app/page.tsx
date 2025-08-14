@@ -35,7 +35,7 @@ export default function Home() {
       const newRoomCode = generateRoomCode();
       
       // Supabase에 새 세션 생성
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('active_sessions')
         .insert({
           room_code: newRoomCode,

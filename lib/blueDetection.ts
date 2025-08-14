@@ -77,8 +77,7 @@ export function rgbToHsl(r: number, g: number, b: number): [number, number, numb
 }
 
 export function detectBlueWithHsl(
-  imageData: ImageData,
-  config: BlueDetectionConfig
+  imageData: ImageData
 ): number {
   const { data, width, height } = imageData;
   

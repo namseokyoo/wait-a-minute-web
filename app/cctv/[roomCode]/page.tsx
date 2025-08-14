@@ -14,20 +14,21 @@ export default function CCTVMode() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const debugCanvasRef = useRef<HTMLCanvasElement>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const channelRef = useRef<any>(null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   
   const [isStreaming, setIsStreaming] = useState(false);
   const [currentBlueLevel, setCurrentBlueLevel] = useState(0);
   const [threshold, setThreshold] = useState(0.1);
   const [debugMode, setDebugMode] = useState(false);
   const [alertTriggered, setAlertTriggered] = useState(false);
-  const [sessionData, setSessionData] = useState<any>(null);
+  const [sessionData, setSessionData] = useState<any>(null); // eslint-disable-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
 
   useEffect(() => {
     initializeSession();
     return () => {
       cleanup();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const initializeSession = async () => {
@@ -70,7 +71,7 @@ export default function CCTVMode() {
         schema: 'public',
         table: 'active_sessions',
         filter: `room_code=eq.${roomCode}`
-      }, (payload: any) => {
+      }, (payload: { new: { blue_threshold: number } }) => {
         // 임계값 업데이트
         if (payload.new.blue_threshold !== threshold) {
           setThreshold(payload.new.blue_threshold);
