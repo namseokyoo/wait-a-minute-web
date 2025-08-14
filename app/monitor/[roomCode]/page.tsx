@@ -12,11 +12,18 @@ export default function MonitorMode() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const alertTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const alertActiveRef = useRef<boolean>(false);
   
   const [sessionData, setSessionData] = useState<any>(null); // eslint-disable-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
   const [currentBlueLevel, setCurrentBlueLevel] = useState(0);
   const [threshold, setThreshold] = useState(0.1);
-  const [alertActive, setAlertActive] = useState(false);
+  const [alertActive, setAlertActiveState] = useState(false);
+  
+  // alertActive 상태를 설정하고 ref도 업데이트
+  const setAlertActive = (value: boolean) => {
+    setAlertActiveState(value);
+    alertActiveRef.current = value;
+  };
   const [alertHistory, setAlertHistory] = useState<Array<{
     timestamp: string;
     level: number;
@@ -35,6 +42,15 @@ export default function MonitorMode() {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // soundEnabled가 변경될 때 오디오 처리
+  useEffect(() => {
+    if (!soundEnabled && audioRef.current && alertActive) {
+      // 소리를 끄면 현재 재생 중인 오디오 정지
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+  }, [soundEnabled, alertActive]);
 
   const initializeSession = async () => {
     try {
@@ -90,18 +106,25 @@ export default function MonitorMode() {
         // 임계값 초과 확인
         if (newData.current_blue_level > newData.blue_threshold) {
           console.log(`Alert condition met: ${(newData.current_blue_level * 100).toFixed(2)}% > ${(newData.blue_threshold * 100).toFixed(2)}%`);
-          handleAlert(newData.current_blue_level);
-        } else {
-          if (alertActive) {
-            console.log(`Alert condition cleared: ${(newData.current_blue_level * 100).toFixed(2)}% <= ${(newData.blue_threshold * 100).toFixed(2)}%`);
+          // 알림이 이미 활성화되어 있지 않을 때만 새로 시작
+          if (!alertActiveRef.current) {
+            handleAlert(newData.current_blue_level);
           }
-          stopAlert();
+        } else {
+          // 임계값 이하로 떨어지면 알림 중지
+          if (alertActiveRef.current) {
+            console.log(`Alert condition cleared: ${(newData.current_blue_level * 100).toFixed(2)}% <= ${(newData.blue_threshold * 100).toFixed(2)}%`);
+            stopAlert();
+          }
         }
       })
       // 브로드캐스트 이벤트 수신
       .on('broadcast', { event: 'blue_alert' }, (payload) => {
         console.log('Alert received:', payload);
-        handleAlert(payload.payload.level);
+        // 알림이 이미 활성화되어 있지 않을 때만 처리
+        if (!alertActiveRef.current) {
+          handleAlert(payload.payload.level);
+        }
       })
       .subscribe();
   };
@@ -118,7 +141,7 @@ export default function MonitorMode() {
     const now = new Date();
     
     // 이미 알림이 활성화되어 있으면 중복 실행 방지
-    if (alertActive) {
+    if (alertActiveRef.current) {
       return;
     }
     
