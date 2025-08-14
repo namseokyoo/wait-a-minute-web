@@ -22,6 +22,7 @@ export default function MonitorMode() {
     level: number;
   }>>([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [vibrationEnabled, setVibrationEnabled] = useState(true);
   const [cctvConnected, setCctvConnected] = useState(false);
   const [lastAlertTime, setLastAlertTime] = useState<Date | null>(null);
 
@@ -141,6 +142,12 @@ export default function MonitorMode() {
       audioRef.current.play().catch(e => console.log('Audio play failed:', e));
     }
     
+    // 진동 알림 (vibrationEnabled 체크)
+    if (vibrationEnabled && 'vibrate' in navigator) {
+      // 진동 패턴: [진동, 멈춤, 진동, 멈춤, 진동] (밀리초 단위)
+      navigator.vibrate([200, 100, 200, 100, 400]);
+    }
+    
     // 브라우저 알림
     try {
       if ('Notification' in window && Notification.permission === 'granted') {
@@ -214,6 +221,11 @@ export default function MonitorMode() {
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
+    }
+    
+    // 진동 정지
+    if ('vibrate' in navigator) {
+      navigator.vibrate(0);
     }
   };
 
@@ -394,6 +406,27 @@ export default function MonitorMode() {
             </div>
             
             <div className="flex justify-between items-center">
+              <span>진동 알림</span>
+              <button
+                onClick={() => {
+                  const newValue = !vibrationEnabled;
+                  setVibrationEnabled(newValue);
+                  // 진동 테스트
+                  if (newValue && 'vibrate' in navigator) {
+                    navigator.vibrate(100); // 짧은 진동 테스트
+                  }
+                }}
+                className={`w-12 h-6 rounded-full transition-colors ${
+                  vibrationEnabled ? 'bg-green-500' : 'bg-gray-600'
+                }`}
+              >
+                <div className={`w-5 h-5 bg-white rounded-full transition-transform ${
+                  vibrationEnabled ? 'translate-x-6' : 'translate-x-0.5'
+                }`} />
+              </button>
+            </div>
+            
+            <div className="flex justify-between items-center">
               <span>브라우저 알림</span>
               <button
                 onClick={requestNotificationPermission}
@@ -402,6 +435,12 @@ export default function MonitorMode() {
                 권한 요청
               </button>
             </div>
+            
+            {!('vibrate' in navigator) && (
+              <div className="text-sm text-yellow-400 bg-yellow-900/30 p-2 rounded">
+                ⚠️ 이 브라우저는 진동을 지원하지 않습니다
+              </div>
+            )}
           </div>
         </div>
 
