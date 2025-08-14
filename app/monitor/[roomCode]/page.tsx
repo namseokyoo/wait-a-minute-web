@@ -30,18 +30,36 @@ export default function MonitorMode() {
   }>>([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [vibrationEnabled, setVibrationEnabled] = useState(true);
+  const [notificationEnabled, setNotificationEnabled] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | ''>('default');
   const [cctvConnected, setCctvConnected] = useState(false);
   const [lastAlertTime, setLastAlertTime] = useState<Date | null>(null);
 
   useEffect(() => {
     initializeSession();
     setupAudio();
+    checkNotificationPermission();
     
     return () => {
       cleanup();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  
+  // 알림 권한 상태 확인
+  const checkNotificationPermission = () => {
+    if ('Notification' in window) {
+      const permission = Notification.permission;
+      setNotificationPermission(permission);
+      setNotificationEnabled(permission === 'granted');
+      
+      // localStorage에서 알림 설정 불러오기
+      const savedNotificationEnabled = localStorage.getItem('notificationEnabled');
+      if (savedNotificationEnabled !== null && permission === 'granted') {
+        setNotificationEnabled(savedNotificationEnabled === 'true');
+      }
+    }
+  };
 
   // soundEnabled가 변경될 때 오디오 처리
   useEffect(() => {
@@ -171,9 +189,9 @@ export default function MonitorMode() {
       navigator.vibrate([200, 100, 200, 100, 400]);
     }
     
-    // 브라우저 알림
+    // 브라우저 알림 (notificationEnabled 체크 추가)
     try {
-      if ('Notification' in window && Notification.permission === 'granted') {
+      if (notificationEnabled && 'Notification' in window && Notification.permission === 'granted') {
         const notification = new Notification('Wait-a-Minute 알림', {
           body: '대기인원이 발생했습니다!',
           icon: '/icon-192.png',  // .svg를 .png로 변경
@@ -213,61 +231,101 @@ export default function MonitorMode() {
     try {
       console.log('Notification permission request started');
       
+      // 알림 API 지원 확인
       if (!('Notification' in window)) {
-        alert('이 브라우저는 알림을 지원하지 않습니다.');
+        // iOS Safari PWA 확인
+        const nav = navigator as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+        if (nav.standalone) {
+          alert('iOS에서는 홈 화면에 추가한 후 알림을 사용할 수 있습니다.');
+        } else {
+          alert('이 브라우저는 알림을 지원하지 않습니다.');
+        }
         return;
       }
       
       const currentPermission = Notification.permission;
       console.log('Current permission:', currentPermission);
+      setNotificationPermission(currentPermission);
       
       if (currentPermission === 'default') {
         // 권한 요청
         try {
+          // 모바일에서는 사용자 제스처가 필요할 수 있음
           const permission = await Notification.requestPermission();
           console.log('New permission:', permission);
+          setNotificationPermission(permission);
           
           if (permission === 'granted') {
-            // 테스트 알림
-            const notification = new Notification('Wait-a-Minute 알림 활성화', {
-              body: '이제 대기인원 발생 시 알림을 받을 수 있습니다.',
-              icon: '/icon-192.png',  // .svg를 .png로 변경
-              tag: 'test-notification'
-            });
+            setNotificationEnabled(true);
+            localStorage.setItem('notificationEnabled', 'true');
             
-            // 3초 후 자동으로 닫기
-            setTimeout(() => {
-              notification.close();
-            }, 3000);
+            // 테스트 알림
+            try {
+              const notification = new Notification('Wait-a-Minute 알림 활성화', {
+                body: '이제 대기인원 발생 시 알림을 받을 수 있습니다.',
+                icon: '/icon-192.png',
+                tag: 'test-notification'
+              });
+              
+              // 3초 후 자동으로 닫기
+              setTimeout(() => {
+                notification.close();
+              }, 3000);
+            } catch (notifError) {
+              console.log('Test notification error:', notifError);
+            }
             
             alert('알림이 활성화되었습니다!');
           } else if (permission === 'denied') {
-            alert('알림 권한이 거부되었습니다. 브라우저 설정에서 알림을 허용해주세요.');
+            setNotificationEnabled(false);
+            localStorage.setItem('notificationEnabled', 'false');
+            alert('알림 권한이 거부되었습니다.\n브라우저 설정에서 알림을 허용해주세요.');
           }
         } catch (error) {
           console.error('Permission request error:', error);
-          alert('알림 권한 요청 중 오류가 발생했습니다.');
+          // 모바일 특별 처리
+          if (error instanceof TypeError) {
+            alert('알림 권한을 요청할 수 없습니다.\n브라우저 설정에서 직접 알림을 허용해주세요.');
+          } else {
+            alert('알림 권한 요청 중 오류가 발생했습니다.');
+          }
         }
       } else if (currentPermission === 'granted') {
-        // 이미 허용됨 - 테스트 알림
-        const notification = new Notification('알림 테스트', {
-          body: '알림이 정상적으로 작동합니다.',
-          icon: '/icon-192.png',
-          tag: 'test-notification'
-        });
+        setNotificationEnabled(true);
+        localStorage.setItem('notificationEnabled', 'true');
         
-        // 3초 후 자동으로 닫기
-        setTimeout(() => {
-          notification.close();
-        }, 3000);
+        // 테스트 알림
+        try {
+          const notification = new Notification('알림 테스트', {
+            body: '알림이 정상적으로 작동합니다.',
+            icon: '/icon-192.png',
+            tag: 'test-notification'
+          });
+          
+          // 3초 후 자동으로 닫기
+          setTimeout(() => {
+            notification.close();
+          }, 3000);
+        } catch (notifError) {
+          console.log('Test notification error:', notifError);
+        }
         
         alert('알림이 이미 활성화되어 있습니다!');
       } else if (currentPermission === 'denied') {
-        alert('알림 권한이 거부되어 있습니다.\n브라우저 설정에서 이 사이트의 알림을 허용해주세요.');
+        setNotificationEnabled(false);
+        localStorage.setItem('notificationEnabled', 'false');
+        
+        // 모바일/데스크톱별 안내
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        if (isMobile) {
+          alert('알림 권한이 거부되어 있습니다.\n\n설정 > 사이트 설정 > 알림에서\n이 사이트의 알림을 허용해주세요.');
+        } else {
+          alert('알림 권한이 거부되어 있습니다.\n\n브라우저 주소창 왼쪽의 자물쇠 아이콘을 클릭하여\n알림 권한을 허용해주세요.');
+        }
       }
     } catch (error) {
       console.error('Notification permission error:', error);
-      alert('알림 설정 중 오류가 발생했습니다.');
+      alert('알림 설정 중 오류가 발생했습니다.\n브라우저 설정을 확인해주세요.');
     }
   };
 
@@ -493,13 +551,51 @@ export default function MonitorMode() {
             </div>
             
             <div className="flex justify-between items-center">
-              <span>브라우저 알림</span>
-              <button
-                onClick={requestNotificationPermission}
-                className="px-3 py-1 bg-purple-600 rounded hover:bg-purple-700"
-              >
-                권한 요청
-              </button>
+              <div className="flex items-center space-x-2">
+                <span>브라우저 알림</span>
+                {notificationPermission === 'denied' && (
+                  <span className="text-xs text-red-400">(권한 거부됨)</span>
+                )}
+                {notificationPermission === 'default' && (
+                  <span className="text-xs text-yellow-400">(권한 필요)</span>
+                )}
+              </div>
+              {notificationPermission === 'granted' ? (
+                <button
+                  onClick={() => {
+                    const newValue = !notificationEnabled;
+                    setNotificationEnabled(newValue);
+                    localStorage.setItem('notificationEnabled', String(newValue));
+                    
+                    // 테스트 알림
+                    if (newValue) {
+                      try {
+                        new Notification('알림 활성화', {
+                          body: '브라우저 알림이 활성화되었습니다.',
+                          icon: '/icon-192.png',
+                          tag: 'test'
+                        });
+                      } catch (e) {
+                        console.log('Test notification error:', e);
+                      }
+                    }
+                  }}
+                  className={`w-12 h-6 rounded-full transition-colors ${
+                    notificationEnabled ? 'bg-green-500' : 'bg-gray-600'
+                  }`}
+                >
+                  <div className={`w-5 h-5 bg-white rounded-full transition-transform ${
+                    notificationEnabled ? 'translate-x-6' : 'translate-x-0.5'
+                  }`} />
+                </button>
+              ) : (
+                <button
+                  onClick={requestNotificationPermission}
+                  className="px-3 py-1 bg-purple-600 rounded hover:bg-purple-700"
+                >
+                  권한 요청
+                </button>
+              )}
             </div>
             
             {!('vibrate' in navigator) && (
