@@ -11,6 +11,7 @@ export default function MonitorMode() {
   
   const audioRef = useRef<HTMLAudioElement>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const alertTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const [sessionData, setSessionData] = useState<any>(null); // eslint-disable-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
   const [currentBlueLevel, setCurrentBlueLevel] = useState(0);
@@ -89,7 +90,7 @@ export default function MonitorMode() {
         if (newData.current_blue_level > newData.blue_threshold) {
           handleAlert(newData.current_blue_level);
         } else {
-          setAlertActive(false);
+          stopAlert();
         }
       })
       // 브로드캐스트 이벤트 수신
@@ -111,6 +112,11 @@ export default function MonitorMode() {
   const handleAlert = (level: number) => {
     const now = new Date();
     
+    // 이미 알림이 활성화되어 있으면 중복 실행 방지
+    if (alertActive) {
+      return;
+    }
+    
     // 30초 쿨다운 체크
     if (lastAlertTime && (now.getTime() - lastAlertTime.getTime()) < 30000) {
       return;
@@ -125,42 +131,82 @@ export default function MonitorMode() {
       level: level
     }, ...prev.slice(0, 9)]); // 최대 10개 유지
     
-    // 사운드 재생
+    // 사운드 재생 (soundEnabled 체크)
     if (soundEnabled && audioRef.current) {
+      audioRef.current.currentTime = 0; // 처음부터 재생
       audioRef.current.play().catch(e => console.log('Audio play failed:', e));
     }
     
     // 브라우저 알림
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('Wait-a-Minute 알림', {
-        body: '대기인원이 발생했습니다!',
-        icon: '/icon-192.png'
-      });
+    try {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const notification = new Notification('Wait-a-Minute 알림', {
+          body: '대기인원이 발생했습니다!',
+          icon: '/icon-192.svg',
+          requireInteraction: false,
+          tag: 'wait-a-minute-alert'
+        });
+        
+        // 알림 클릭 시 창 포커스
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
+      }
+    } catch (e) {
+      console.log('Notification failed:', e);
+    }
+    
+    // 이전 타임아웃 클리어
+    if (alertTimeoutRef.current) {
+      clearTimeout(alertTimeoutRef.current);
     }
     
     // 10초 후 자동으로 알림 해제
-    setTimeout(() => {
-      setAlertActive(false);
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-      }
+    alertTimeoutRef.current = setTimeout(() => {
+      stopAlert();
     }, 10000);
   };
 
   const requestNotificationPermission = async () => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        new Notification('알림이 활성화되었습니다', {
-          body: '이제 대기인원 발생 시 알림을 받을 수 있습니다.'
+    if ('Notification' in window) {
+      const currentPermission = Notification.permission;
+      
+      if (currentPermission === 'default') {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          // 테스트 알림
+          new Notification('알림이 활성화되었습니다', {
+            body: '이제 대기인원 발생 시 알림을 받을 수 있습니다.',
+            icon: '/icon-192.svg'
+          });
+        } else if (permission === 'denied') {
+          alert('알림 권한이 거부되었습니다. 브라우저 설정에서 알림을 허용해주세요.');
+        }
+      } else if (currentPermission === 'granted') {
+        // 이미 허용됨 - 테스트 알림
+        new Notification('알림 테스트', {
+          body: '알림이 정상적으로 작동합니다.',
+          icon: '/icon-192.svg'
         });
+      } else {
+        alert('알림 권한이 거부되어 있습니다. 브라우저 설정에서 알림을 허용해주세요.');
       }
+    } else {
+      alert('이 브라우저는 알림을 지원하지 않습니다.');
     }
   };
 
   const stopAlert = () => {
     setAlertActive(false);
+    
+    // 타임아웃 클리어
+    if (alertTimeoutRef.current) {
+      clearTimeout(alertTimeoutRef.current);
+      alertTimeoutRef.current = null;
+    }
+    
+    // 오디오 정지
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -168,10 +214,16 @@ export default function MonitorMode() {
   };
 
   const cleanup = async () => {
+    // 알림 정지
+    stopAlert();
+    
+    // 오디오 정리
     if (audioRef.current) {
       audioRef.current.pause();
+      audioRef.current.src = '';
     }
     
+    // 채널 구독 해제
     if (channelRef.current) {
       channelRef.current.unsubscribe();
     }
@@ -315,7 +367,15 @@ export default function MonitorMode() {
             <div className="flex justify-between items-center">
               <span>소리 알림</span>
               <button
-                onClick={() => setSoundEnabled(!soundEnabled)}
+                onClick={() => {
+                  const newValue = !soundEnabled;
+                  setSoundEnabled(newValue);
+                  // 소리를 끄면 현재 재생 중인 소리도 정지
+                  if (!newValue && audioRef.current) {
+                    audioRef.current.pause();
+                    audioRef.current.currentTime = 0;
+                  }
+                }}
                 className={`w-12 h-6 rounded-full transition-colors ${
                   soundEnabled ? 'bg-green-500' : 'bg-gray-600'
                 }`}
