@@ -28,8 +28,21 @@ export default function MonitorMode() {
     timestamp: string;
     level: number;
   }>>([]);
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [vibrationEnabled, setVibrationEnabled] = useState(true);
+  // localStorage에서 알림 설정 불러오기 (초기값 설정)
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('soundEnabled');
+      return saved !== null ? saved === 'true' : true;
+    }
+    return true;
+  });
+  const [vibrationEnabled, setVibrationEnabled] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vibrationEnabled');
+      return saved !== null ? saved === 'true' : true;
+    }
+    return true;
+  });
   const [notificationEnabled, setNotificationEnabled] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | ''>('default');
   const [cctvConnected, setCctvConnected] = useState(false);
@@ -513,6 +526,8 @@ export default function MonitorMode() {
                 onClick={() => {
                   const newValue = !soundEnabled;
                   setSoundEnabled(newValue);
+                  localStorage.setItem('soundEnabled', String(newValue));
+                  
                   // 소리를 끄면 현재 재생 중인 소리도 정지
                   if (!newValue && audioRef.current) {
                     audioRef.current.pause();
@@ -535,6 +550,8 @@ export default function MonitorMode() {
                 onClick={() => {
                   const newValue = !vibrationEnabled;
                   setVibrationEnabled(newValue);
+                  localStorage.setItem('vibrationEnabled', String(newValue));
+                  
                   // 진동 테스트
                   if (newValue && 'vibrate' in navigator) {
                     navigator.vibrate(100); // 짧은 진동 테스트
