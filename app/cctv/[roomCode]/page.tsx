@@ -157,9 +157,14 @@ export default function CCTVMode() {
     }
 
     // 임계값 초과 확인
-    if (blueLevel > threshold && !alertTriggered) {
+    // threshold가 0.7이면 파란색이 70% 이상일 때 알림
+    const shouldTrigger = blueLevel > threshold;
+    
+    if (shouldTrigger && !alertTriggered) {
+      console.log(`Alert triggered! Blue: ${(blueLevel * 100).toFixed(2)}% > Threshold: ${(threshold * 100).toFixed(2)}%`);
       triggerAlert(blueLevel);
-    } else if (blueLevel <= threshold) {
+    } else if (!shouldTrigger && alertTriggered) {
+      console.log(`Alert cleared. Blue: ${(blueLevel * 100).toFixed(2)}% <= Threshold: ${(threshold * 100).toFixed(2)}%`);
       setAlertTriggered(false);
     }
 
@@ -305,8 +310,15 @@ export default function CCTVMode() {
             </div>
             
             <div className="flex justify-between">
-              <span>임계값:</span>
+              <span>알림 임계값:</span>
               <span className="font-bold">{(threshold * 100).toFixed(2)}%</span>
+            </div>
+            
+            <div className="flex justify-between">
+              <span>알림 조건:</span>
+              <span className="text-sm text-gray-400">
+                파란색 &gt; {(threshold * 100).toFixed(0)}%
+              </span>
             </div>
             
             <div className="flex justify-between">
@@ -320,8 +332,11 @@ export default function CCTVMode() {
           {/* 민감도 조절 */}
           <div className="bg-gray-800 p-4 rounded-lg">
             <label className="block mb-2">
-              민감도 조절 (임계값: {(threshold * 100).toFixed(1)}%)
+              알림 임계값 설정: {(threshold * 100).toFixed(1)}%
             </label>
+            <p className="text-sm text-gray-400 mb-3">
+              화면의 {(threshold * 100).toFixed(0)}% 이상이 파란색일 때 알림이 발생합니다
+            </p>
             <input
               type="range"
               min="1"

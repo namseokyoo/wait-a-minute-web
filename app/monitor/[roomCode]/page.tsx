@@ -88,8 +88,12 @@ export default function MonitorMode() {
         
         // 임계값 초과 확인
         if (newData.current_blue_level > newData.blue_threshold) {
+          console.log(`Alert condition met: ${(newData.current_blue_level * 100).toFixed(2)}% > ${(newData.blue_threshold * 100).toFixed(2)}%`);
           handleAlert(newData.current_blue_level);
         } else {
+          if (alertActive) {
+            console.log(`Alert condition cleared: ${(newData.current_blue_level * 100).toFixed(2)}% <= ${(newData.blue_threshold * 100).toFixed(2)}%`);
+          }
           stopAlert();
         }
       })
@@ -316,7 +320,7 @@ export default function MonitorMode() {
               />
             </div>
             <div className="text-sm text-gray-300 mt-1">
-              임계값: {(threshold * 100).toFixed(1)}%
+              알림 기준: 파란색 &gt; {(threshold * 100).toFixed(1)}%
             </div>
           </div>
 
@@ -344,8 +348,11 @@ export default function MonitorMode() {
           {/* 민감도 조절 */}
           <div className="mb-4">
             <label className="block mb-2">
-              민감도 조절 (임계값: {(threshold * 100).toFixed(1)}%)
+              알림 임계값 설정: {(threshold * 100).toFixed(1)}%
             </label>
+            <p className="text-sm text-gray-300 mb-3">
+              화면의 {(threshold * 100).toFixed(0)}% 이상이 파란색일 때 알림이 발생합니다
+            </p>
             <input
               type="range"
               min="1"

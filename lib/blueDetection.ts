@@ -24,15 +24,15 @@ export function detectBlueLevel(
     // 투명 픽셀 무시
     if (a < 128) continue;
     
-    // 파란색 감지 조건:
-    // 1. 파란색 채널이 빨강, 초록보다 강해야 함
-    // 2. 파란색 채널이 최소 강도 이상이어야 함
-    // 3. 파란색이 빨강보다 20% 이상, 초록보다 20% 이상 강해야 함
-    const blueRatio = b / Math.max(r, g, 1);
+    // 파란색 감지 조건 (더 엄격하게):
+    // 1. 파란색 채널이 최소 강도 이상이어야 함
+    // 2. 파란색이 빨강보다 50% 이상 강해야 함
+    // 3. 파란색이 초록보다 50% 이상 강해야 함
+    // 4. 파란색이 전체적으로 우세해야 함 (B > R+G)
     const isBlue = b > minBlueIntensity && 
-                   b > r * 1.2 && 
-                   b > g * 1.2 &&
-                   blueRatio > 1.2;
+                   b > r * 1.5 && 
+                   b > g * 1.5 &&
+                   b > (r + g) * 0.8;
     
     if (isBlue) {
       bluePixels++;
@@ -125,11 +125,10 @@ export function drawDebugOverlay(
     const b = data[i + 2];
     const a = data[i + 3];
     
-    const blueRatio = b / Math.max(r, g, 1);
     const isBlue = b > minBlueIntensity && 
-                   b > r * 1.2 && 
-                   b > g * 1.2 &&
-                   blueRatio > 1.2;
+                   b > r * 1.5 && 
+                   b > g * 1.5 &&
+                   b > (r + g) * 0.8;
     
     if (isBlue) {
       // 파란색으로 감지된 픽셀을 밝은 파란색으로 표시
