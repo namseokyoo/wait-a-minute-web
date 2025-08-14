@@ -34,6 +34,15 @@ export default function Home() {
     try {
       const newRoomCode = generateRoomCode();
       
+      // 3일 이상 된 오래된 세션 삭제 (앱에서도 정리)
+      const threeDaysAgo = new Date();
+      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+      
+      await supabase
+        .from('active_sessions')
+        .delete()
+        .lt('updated_at', threeDaysAgo.toISOString());
+      
       // Supabase에 새 세션 생성
       const { error } = await supabase
         .from('active_sessions')
