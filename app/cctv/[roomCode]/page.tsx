@@ -325,15 +325,16 @@ export default function CCTVMode() {
             <input
               type="range"
               min="1"
-              max="50"
+              max="100"
               step="0.5"
               value={threshold * 100}
               onChange={(e) => updateThreshold(Number(e.target.value) / 100)}
               className="w-full"
             />
             <div className="flex justify-between text-sm text-gray-400 mt-1">
-              <span>1% (민감)</span>
-              <span>50% (둔감)</span>
+              <span>1% (매우 민감)</span>
+              <span>50% (보통)</span>
+              <span>100% (매우 둔감)</span>
             </div>
           </div>
         </div>
