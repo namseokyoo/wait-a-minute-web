@@ -277,6 +277,9 @@ export default function MonitorMode() {
   const updateThreshold = async (newThreshold: number) => {
     setThreshold(newThreshold);
     
+    // localStorage에 민감도 값 저장
+    localStorage.setItem('lastBlueThreshold', newThreshold.toString());
+    
     await supabase
       .from('active_sessions')
       .update({ blue_threshold: newThreshold })

@@ -43,6 +43,10 @@ export default function Home() {
         .delete()
         .lt('updated_at', threeDaysAgo.toISOString());
       
+      // localStorage에서 마지막 사용한 민감도 값 가져오기
+      const savedThreshold = localStorage.getItem('lastBlueThreshold');
+      const threshold = savedThreshold ? parseFloat(savedThreshold) : 0.1;
+      
       // Supabase에 새 세션 생성
       const { error } = await supabase
         .from('active_sessions')
@@ -50,7 +54,7 @@ export default function Home() {
           room_code: newRoomCode,
           cctv_connected: false,
           monitor_connected: false,
-          blue_threshold: 0.1,
+          blue_threshold: threshold,
           current_blue_level: 0
         })
         .select()
