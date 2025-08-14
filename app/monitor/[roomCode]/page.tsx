@@ -176,16 +176,23 @@ export default function MonitorMode() {
       if ('Notification' in window && Notification.permission === 'granted') {
         const notification = new Notification('Wait-a-Minute 알림', {
           body: '대기인원이 발생했습니다!',
-          icon: '/icon-192.svg',
+          icon: '/icon-192.png',  // .svg를 .png로 변경
           requireInteraction: false,
-          tag: 'wait-a-minute-alert'
+          tag: 'wait-a-minute-alert',
+          silent: false  // 소리 알림 허용
         });
         
         // 알림 클릭 시 창 포커스
         notification.onclick = () => {
           window.focus();
           notification.close();
+          stopAlert();  // 알림 클릭 시 알림 중지
         };
+        
+        // 5초 후 자동으로 닫기 (requireInteraction이 false일 때)
+        setTimeout(() => {
+          notification.close();
+        }, 5000);
       }
     } catch (e) {
       console.log('Notification failed:', e);
@@ -203,31 +210,64 @@ export default function MonitorMode() {
   };
 
   const requestNotificationPermission = async () => {
-    if ('Notification' in window) {
+    try {
+      console.log('Notification permission request started');
+      
+      if (!('Notification' in window)) {
+        alert('이 브라우저는 알림을 지원하지 않습니다.');
+        return;
+      }
+      
       const currentPermission = Notification.permission;
+      console.log('Current permission:', currentPermission);
       
       if (currentPermission === 'default') {
-        const permission = await Notification.requestPermission();
-        if (permission === 'granted') {
-          // 테스트 알림
-          new Notification('알림이 활성화되었습니다', {
-            body: '이제 대기인원 발생 시 알림을 받을 수 있습니다.',
-            icon: '/icon-192.svg'
-          });
-        } else if (permission === 'denied') {
-          alert('알림 권한이 거부되었습니다. 브라우저 설정에서 알림을 허용해주세요.');
+        // 권한 요청
+        try {
+          const permission = await Notification.requestPermission();
+          console.log('New permission:', permission);
+          
+          if (permission === 'granted') {
+            // 테스트 알림
+            const notification = new Notification('Wait-a-Minute 알림 활성화', {
+              body: '이제 대기인원 발생 시 알림을 받을 수 있습니다.',
+              icon: '/icon-192.png',  // .svg를 .png로 변경
+              tag: 'test-notification'
+            });
+            
+            // 3초 후 자동으로 닫기
+            setTimeout(() => {
+              notification.close();
+            }, 3000);
+            
+            alert('알림이 활성화되었습니다!');
+          } else if (permission === 'denied') {
+            alert('알림 권한이 거부되었습니다. 브라우저 설정에서 알림을 허용해주세요.');
+          }
+        } catch (error) {
+          console.error('Permission request error:', error);
+          alert('알림 권한 요청 중 오류가 발생했습니다.');
         }
       } else if (currentPermission === 'granted') {
         // 이미 허용됨 - 테스트 알림
-        new Notification('알림 테스트', {
+        const notification = new Notification('알림 테스트', {
           body: '알림이 정상적으로 작동합니다.',
-          icon: '/icon-192.svg'
+          icon: '/icon-192.png',
+          tag: 'test-notification'
         });
-      } else {
-        alert('알림 권한이 거부되어 있습니다. 브라우저 설정에서 알림을 허용해주세요.');
+        
+        // 3초 후 자동으로 닫기
+        setTimeout(() => {
+          notification.close();
+        }, 3000);
+        
+        alert('알림이 이미 활성화되어 있습니다!');
+      } else if (currentPermission === 'denied') {
+        alert('알림 권한이 거부되어 있습니다.\n브라우저 설정에서 이 사이트의 알림을 허용해주세요.');
       }
-    } else {
-      alert('이 브라우저는 알림을 지원하지 않습니다.');
+    } catch (error) {
+      console.error('Notification permission error:', error);
+      alert('알림 설정 중 오류가 발생했습니다.');
     }
   };
 

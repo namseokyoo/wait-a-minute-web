@@ -51,8 +51,8 @@ self.addEventListener('fetch', event => {
 self.addEventListener('push', event => {
   const options = {
     body: event.data ? event.data.text() : '대기인원이 발생했습니다!',
-    icon: '/icon-192.svg',
-    badge: '/icon-192.svg',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
     vibrate: [200, 100, 200, 100, 400], // 진동 패턴: 진동-멈춤-진동-멈춤-긴진동
     requireInteraction: true,
     tag: 'wait-a-minute-alert',
