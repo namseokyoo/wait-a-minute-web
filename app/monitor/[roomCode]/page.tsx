@@ -14,6 +14,11 @@ export default function MonitorMode() {
   const alertTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const alertActiveRef = useRef<boolean>(false);
   
+  // 알림 설정 ref (최신 값 유지)
+  const soundEnabledRef = useRef<boolean>(true);
+  const vibrationEnabledRef = useRef<boolean>(true);
+  const notificationEnabledRef = useRef<boolean>(false);
+  
   const [sessionData, setSessionData] = useState<any>(null); // eslint-disable-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
   const [currentBlueLevel, setCurrentBlueLevel] = useState(0);
   const [threshold, setThreshold] = useState(0.1);
@@ -32,14 +37,18 @@ export default function MonitorMode() {
   const [soundEnabled, setSoundEnabled] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('soundEnabled');
-      return saved !== null ? saved === 'true' : true;
+      const value = saved !== null ? saved === 'true' : true;
+      soundEnabledRef.current = value;
+      return value;
     }
     return true;
   });
   const [vibrationEnabled, setVibrationEnabled] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('vibrationEnabled');
-      return saved !== null ? saved === 'true' : true;
+      const value = saved !== null ? saved === 'true' : true;
+      vibrationEnabledRef.current = value;
+      return value;
     }
     return true;
   });
@@ -74,14 +83,25 @@ export default function MonitorMode() {
     }
   };
 
-  // soundEnabled가 변경될 때 오디오 처리
+  // soundEnabled가 변경될 때 오디오 처리 및 ref 업데이트
   useEffect(() => {
+    soundEnabledRef.current = soundEnabled;
     if (!soundEnabled && audioRef.current && alertActive) {
       // 소리를 끄면 현재 재생 중인 오디오 정지
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
   }, [soundEnabled, alertActive]);
+  
+  // vibrationEnabled가 변경될 때 ref 업데이트
+  useEffect(() => {
+    vibrationEnabledRef.current = vibrationEnabled;
+  }, [vibrationEnabled]);
+  
+  // notificationEnabled가 변경될 때 ref 업데이트
+  useEffect(() => {
+    notificationEnabledRef.current = notificationEnabled;
+  }, [notificationEnabled]);
 
   const initializeSession = async () => {
     try {
@@ -190,21 +210,21 @@ export default function MonitorMode() {
       level: level
     }, ...prev.slice(0, 9)]); // 최대 10개 유지
     
-    // 사운드 재생 (soundEnabled 체크)
-    if (soundEnabled && audioRef.current) {
+    // 사운드 재생 (soundEnabledRef 체크)
+    if (soundEnabledRef.current && audioRef.current) {
       audioRef.current.currentTime = 0; // 처음부터 재생
       audioRef.current.play().catch(e => console.log('Audio play failed:', e));
     }
     
-    // 진동 알림 (vibrationEnabled 체크)
-    if (vibrationEnabled && 'vibrate' in navigator) {
+    // 진동 알림 (vibrationEnabledRef 체크)
+    if (vibrationEnabledRef.current && 'vibrate' in navigator) {
       // 진동 패턴: [진동, 멈춤, 진동, 멈춤, 진동] (밀리초 단위)
       navigator.vibrate([200, 100, 200, 100, 400]);
     }
     
-    // 브라우저 알림 (notificationEnabled 체크 추가)
+    // 브라우저 알림 (notificationEnabledRef 체크)
     try {
-      if (notificationEnabled && 'Notification' in window && Notification.permission === 'granted') {
+      if (notificationEnabledRef.current && 'Notification' in window && Notification.permission === 'granted') {
         const notification = new Notification('Wait-a-Minute 알림', {
           body: '대기인원이 발생했습니다!',
           icon: '/icon-192.png',  // .svg를 .png로 변경
